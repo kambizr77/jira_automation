@@ -15,16 +15,17 @@ from collections import OrderedDict as order
 import progressbar
 from config import Config
 import re
+from ticket import Tickets
 
 class Package:
     #connect to Jira REST and return ticket
-    def issue_jira(jira_query):
+    def issue_jira(self,jira_query):
         jira=Jira()
         issues=jira.get_issues(jira_query)
         return issues
     #it read a ticket and return hostnames and packages mentioned in a ticket
-    def package_check(issues):
-        pattern=re.compile(r'([\w]+)')
+    def package_check(self,issues):
+        pattern=re.compile(r'([\w_]+)')
         for issue in issues:
             # print(dir(issue.fields))
             print("Package: ",colored(issue.fields.summary.split(':')[1].split(' ')[1],'cyan'))
@@ -54,7 +55,7 @@ class Package:
         bar0.start()
         for host in hostnames:
             bar0.update(i)
-            status=Package.host_up(host)
+            status=self.host_up(host)
             if h < 1:
                 for pkg in pkgs:
                     pkg2=re.search(pattern,pkg).group(0)
@@ -70,17 +71,21 @@ class Package:
                         result2=result1.decode('utf-8')
                         package=result2.split(' ')[0]
                         if package not in packages:
-                            packages.append(package)
+                            if '.x86_64' in package:
+                                packages.append(package.replace('.x86_64',''))
+                            elif '.i686' in package:
+                                packages.append(package.replace('.i686',''))
                         h += 1
             if  not status:
                 down.append(host)
             i += 1
             # h += 1
         bar0.finish()
+
         packages2=list(order.fromkeys(packages))
         return hostnames,packages2,down
     #check host reachability
-    def host_up(host):
+    def host_up(self,host):
         status,result=subprocess.getstatusoutput("ping -c 1 "+host.split(':')[0])
         if status == 0:
             return True
@@ -88,13 +93,14 @@ class Package:
             return False
 
 #verify each host is patched or not
-    def get_ticket_package(ticket_no):
+    def get_ticket_package(self,ticket_no):
         print(colored(f"Tikcet: {ticket_no}",'green'))
         update=[]
         noupdate=[]
+        update_list_temp=[]
         jira_query ='issuekey ='+ticket_no
-        issues=Package.issue_jira(jira_query)
-        hostnames,packages2,down=Package.package_check(issues)
+        issues=self.issue_jira(jira_query)
+        hostnames,packages2,down=self.package_check(issues)
         print(colored("Hosts verification....",'cyan'))
         bar = progressbar.ProgressBar(maxval=len(hostnames),widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
         bar.start()
@@ -113,6 +119,7 @@ class Package:
                     result2=result1.decode('utf-8')
                     if len(result2) > 0:
                         noupdate.append(host)
+                        update_list_temp.append(package)
                     else:
                         update.append(host)
 
@@ -120,13 +127,15 @@ class Package:
         bar.finish()
         if len(noupdate) > 0:
             noupdate2=list(order.fromkeys(noupdate))
+            update_list=list(order.fromkeys(update_list_temp))
         else:
             noupdate2=[]
-        return noupdate2,down,update,packages2
+
+        return noupdate2,down,update,packages2,update_list
 
 
 #Writing output on afile
-    def export_writer(noupdate2,down,packages2,export):
+    def export_writer(self,noupdate2,down,packages2,export):
         file='./output/'+export
         if len(noupdate2) > 0 and len(down) > 0:
             noupdate2.sort()
@@ -164,8 +173,8 @@ class Package:
 
 
 #main method for single ticket which execute by --verify
-    def single_ticket(self,ticket,export):
-        noupdate2,down,update,packages2=Package.get_ticket_package(ticket)
+    def single_ticket(self,ticket,export=False):
+        noupdate2,down,update,packages2,update_list=self.get_ticket_package(ticket)
         if export == False:
             if len(noupdate2) > 0 and len(down) > 0:
                 print('-------------------------------------------------------')
@@ -182,6 +191,9 @@ class Package:
                         noupdate2.sort()
                         for item in noupdate2:
                             print(item.split(':')[0])
+                        print('----Packages----')
+                        for item in update_list:
+                            print(item)
                         sys.exit()
                     elif answer.lower() == 'n':
                         sys.exit()
@@ -205,6 +217,7 @@ class Package:
                         noupdate2.sort()
                         for item in noupdate2:
                             print(item.split(':')[0])
+                            print(update_list)
                         sys.exit()
                     elif answer.lower() == 'n':
                         sys.exit()
@@ -215,7 +228,7 @@ class Package:
                 print(colored('You do not have any hosts to patch and your ticket is ready for security review','green'))
         else:
             print(export)
-            Package.export_writer(noupdate2,down,packages2,export)
+            self.export_writer(noupdate2,down,packages2,export)
             print(f"Output has been writen in ./output/{export}")
 
 #Reading config file and use Jquery to fid tickets and verify each of the and write the output on each seprate file with issue_key.txt
@@ -223,13 +236,13 @@ class Package:
 
         config=Config()
         jira_query=config.config_reader(configfile,query)
-        issues=Package.issue_jira(jira_query)
+        issues=self.issue_jira(jira_query)
         print(f'Verifying {colored(issues.total,"red")} Tickets... ')
         i=1
         for issue in issues:
             print(colored(f'No: {i} ','yellow'))
             file='./output/'+str(issue.key)+'.txt'
-            noupdate2,down,update,packages2=Package.get_ticket_package(issue.key)
+            noupdate2,down,update,packages2=self.get_ticket_package(issue.key)
             if len(noupdate2) > 0 and len(down) > 0:
                 noupdate2.sort()
                 down.sort()
@@ -265,6 +278,9 @@ class Package:
                     f.write('-------------------------------------')
 
             i += 1
+
+
+
 
 
 

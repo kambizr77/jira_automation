@@ -33,6 +33,6 @@ Use config file to export hostnames:
     main.py --config config_name.cnf --query query_name
 ------------
 
-Use Config File to verify multiple tickets: It generate several text file and export hostnames of each ticket to diffrent tetxt filename
+Use Config File to verify multiple tickets: It generate several text file and export hostnames of each ticket to several text filename
     main.py --config config.cnf --query query_name --verify
 ------------

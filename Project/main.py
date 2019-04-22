@@ -48,14 +48,16 @@ def main():
         tickets.ticket_files(args.filename)
     elif args.comment:
         package.post_comment(args.comment)
-    elif args.verify and args.verify != 'verify' and not args.config and not args.query:
+    elif args.verify and args.verify != 'verify' and not args.config and not args.query and not args.filename:
         package.single_ticket(args.verify,export)
-    elif args.filename:
+    elif args.verify == 'verify'  and args.config and args.query and not args.filename:
+        package.multiple_tickets(args.config,args.query)
+    elif args.verify == 'verify' and args.filename:
+        package.host_list_verify(args.filename)
+    elif args.filename and not args.verify:
         tickets.filename(args.filename)
     elif args.new:
         config.config_create(args.new)
-    elif args.verify == 'verify'  and args.config and args.query:
-        package.multiple_tickets(args.config,args.query)
     elif args.example == 'example' :
         Example.example()
     else:

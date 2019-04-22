@@ -12,9 +12,7 @@ from collections import OrderedDict as order
 from nomad import Nomad
 
 
-def ip_range_finder():
-
-
+def pdu_ip_range_finder():
     with open('dhcpd.conf') as f:
 
         lines = f.readlines()
@@ -47,6 +45,20 @@ def ip_range_finder():
                         n += 1
     return ip_range
 
+def oob_ip_range_finder():
+    oob_ips=[]
+    for oct3 in range(0,255):
+        for oct4 in range(0,255):
+            oob_ips.append('10.111.'+str(oct3)+'.'+str(oct4))
+            oob_ips.append('10.47.'+str(oct3)+'.'+str(oct4))
+            oob_ips.append('10.63.'+str(oct3)+'.'+str(oct4))
+            oob_ips.append('10.238.'+str(oct3)+'.'+str(oct4))
+            oob_ips.append('10.239.'+str(oct3)+'.'+str(oct4))
+            oob_ips.append('10.240.'+str(oct3)+'.'+str(oct4))
+            oob_ips.append('10.241.'+str(oct3)+'.'+str(oct4))
+
+    return oob_ips
+
 def owner_finder(hosts):
     ticket=Ticket()
     hosts_ticket={}
@@ -60,13 +72,13 @@ def owner_finder(hosts):
 
 def data_create():
     nomad=Nomad()
-    ip_range=ip_range_finder()
+    ip_range=pdu_ip_range_finder()
     # cmd=os.system('./un.sh > all_unknown.txt')
     with open('manual_unknown.txt','r') as f:
         hosts=f.readlines()
     ip=IpChecker()
     bucket=ip.ip_check()
-
+    oob_ips=oob_ip_range_finder()
     hosts_ticket,owners=owner_finder(hosts)
     data={}
     emails=[]
@@ -81,7 +93,7 @@ def data_create():
                     temp_ip.append(str(values[j]))
                     j += 1
                 for ip in temp_ip:
-                    if key in ip and key not in ip_range:
+                    if key in ip and key not in ip_range and key not in oob_ips:
                         owner_key=keys.split('_')[0]
                         owner_name=owners[owner_key][keys]['owner']
                         if owners[owner_key][keys]['email'] != 'NA' and owners[owner_key][keys]['email'] not in emails:
@@ -90,7 +102,11 @@ def data_create():
                     elif key in ip_range:
                         owner_name='Clay Alvord'
                         emails.append('calvord@box.com')
-                        data.update({key:['PDU',str(owner_name),value,nomad_data]})
+                        data.update({key:['PDU-OOB',str(owner_name),value,nomad_data]})
+                    elif key in oob_ips:
+                        owner_name='Clay Alvord'
+                        emails.append('calvord@box.com')
+                        data.update({key:['OOB',str(owner_name),value,nomad_data]})
     return data,emails
 
 def main():
@@ -138,7 +154,7 @@ def main():
             </body>
         '''
 
-        recipients1 = ['kevinf@box.com','plandry@box.com','mkim@box.com','nmilman@box.com','sdeol@box.com','anum@box.com'] + email
+        recipients1 = ['kevinf@box.com','plandry@box.com','mkim@box.com','nmilman@box.com','sdeol@box.com','anum@box.com','sfong@box.com'] + email
 
         recipients = recipients1
         #toaddr=recipients

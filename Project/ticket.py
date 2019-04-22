@@ -79,9 +79,27 @@ class Ticket:
             print(colored(f'Error! there is no ticket for {hostname}','red'))
 
 
+
+#return list of the ticket for use in any other methods
+    def host_finder(self,hostname):
+        host=[]
+        jira_query ='issuetype = "Infra Vuln" AND status in (Open, "In Progress") AND text ~  '+hostname
+        try:
+            issues=self.jira.get_issues(jira_query)
+            if issues.total > 0:
+                for issue in issues:
+                    host.append(issue.key)
+            return host
+        except:
+            host.append('N/A')
+        
+
+
+
+
+
     def ticket(self,ticketno):
         try:
-
             jira_query ='issuekey ='+ticketno
             issues=self.jira.get_issues(jira_query)
 
